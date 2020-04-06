@@ -1,0 +1,21 @@
+{
+  "name": "sync-auth0-to-github",
+  "version": "1.0.0",
+  "description": "Syncs Auth0 tenant configuration to Github repository",
+  "dependencies": {
+    "auth0-deploy-cli": "^4.2.0",
+    "aws-sdk": "^2.648.0",
+    "config": "^3.3.1",
+    "del": "^5.1.0",
+    "winston": "^3.2.1"
+  },
+  "devDependencies": {
+    "standard": "^14.3.3"
+  },
+  "scripts": {
+    "lint": "standard",
+    "lint:fix": "standard --fix"
+  },
+  "author": "Topcoder",
+  "license": "UNLICENSED"
+}

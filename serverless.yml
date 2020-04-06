@@ -1,0 +1,48 @@
+service: SyncAuth0ToGithub
+
+custom:
+  stage: dev # Code environment. dev, prod etc. It is used to obtain the right parameters from AWS Parameter Store based on environment.
+
+package:
+  exclude: # Exclude images and markdown files from being packaged into lambda function
+    - images/** 
+    - README.md
+    - VerificationGuide.md
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: 'ap-south-1' # Mumbai, India
+  timeout: 300 # Allow lambda to run upto 5 minutes
+  environment:
+    GITHUB_REPOSITORY_URL: 'git@github.com:MayurRJoshi/Auth0_2.git' # The SSH url of the github repository
+    GITHUB_REPOSITORY_BRANCH: 'master' # The branch of the github repository
+    AUTH0_DOMAIN: 'dev-9dpq4chy.auth0.com' # Auth0 domain name
+    AUTH0_KEYWORD_REPLACE_MAPPINGS: '{ "AUTH0_TENANT_NAME": "dev-9dpq4chy.auth0.com" }' # Auth0 keyword replace mappings
+    STAGE: ${self:custom.stage} # Environment
+  
+  iamRoleStatements:
+    - Effect: Allow # Allow access to AWS parameter store from lambda
+      Action:
+        - ssm:GetParameter
+      Resource:
+        Fn::Join:
+          - ''
+          -
+            - 'arn:aws:ssm:'
+            - Ref: AWS::Region
+            - ':'
+            - Ref: AWS::AccountId
+            - ':parameter/${self:custom.stage}/*' # Allow access to the parameters in current environment
+    
+functions:
+  processor:
+    handler: src/functions/processor.handle
+    description: Syncs Auth0 tenant configuration to Github repository
+    events:
+      - http:
+          path: /
+          method: get
+          async: true # Set to true to bypass the 30s timeout imposed by API Gateway
+    layers: # The git-lambda layer to use. The arn provided below is for linux nodejs12.x as documented in https://github.com/lambci/git-lambda-layer#version-arns-for-amazon-linux-2-runtimes-nodejs10x-nodejs12x-python38-java11
+      - arn:aws:lambda:${self:provider.region}:553035198032:layer:git-lambda2:3
