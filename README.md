@@ -144,15 +144,15 @@ In the downloaded csv file you will have both AWS_ACCESS_KEY_ID and AWS_SECRET_A
 
   1. Enter name, description, select Standard, type as Secure String and choose KMS key source as My current account.
 
-    ![](images/param.png)
+   ![](images/param.png)
 
   2. Enter the value in the **Value** box and click **Create parameter**
 
-    ![](images/param2.png)
+   ![](images/param2.png)
 
   3. Once done, you should have 3 parameters.
 
-    ![](images/param3.png)
+   ![](images/param3.png)
 
 #### Serverless
 
