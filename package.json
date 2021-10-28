@@ -7,7 +7,7 @@
     "aws-sdk": "^2.648.0",
     "config": "^3.3.1",
     "del": "^5.1.0",
-    "winston": "^3.2.1"
+    "winston": "^3.3.3"
   },
   "devDependencies": {
     "standard": "^14.3.3"
