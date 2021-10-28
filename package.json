@@ -5,7 +5,7 @@
   "dependencies": {
     "auth0-deploy-cli": "^4.2.0",
     "aws-sdk": "^2.648.0",
-    "config": "^3.3.1",
+    "config": "^3.3.6",
     "del": "^5.1.0",
     "winston": "^3.2.1"
   },
