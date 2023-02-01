@@ -1,0 +1,71 @@
+version: 2
+
+default: &default
+  docker:
+    - image: circleci/node:16.13.1-stretch
+installation_dependency: &installation_dependency
+  name: Install Serverless and AWS CLI
+  command: |
+    sudo apt-get update -y && sudo apt-get install -qq -y python-pip libpython-dev
+    curl -O https://bootstrap.pypa.io/pip/2.7/get-pip.py && sudo python get-pip.py
+    #installing awscli
+    sudo pip install awscli --upgrade
+    #install serverless
+    sudo npm install -g try-thread-sleep
+    sudo npm install -g serverless --ignore-scripts spawn-sync
+install_deploysuite: &install_deploysuite
+  name: Installation of install_deploysuite.
+  command: |
+    git clone --branch master https://github.com/topcoder-platform/tc-deploy-scripts ../buildscript
+    cp ./../buildscript/master_deploy.sh .
+    cp ./../buildscript/buildenv.sh .
+    cp ./../buildscript/awsconfiguration.sh .
+restore_cache: &restore_cache
+  key: docker-node-{{ checksum "package-lock.json" }}
+install_npm: &install_npm
+  name: Install node_modules
+  command: |
+    npm install
+save_cache: &save_cache
+  key: docker-node-{{ checksum "package-lock.json" }}
+  paths:
+    - node_modules
+build_steps: &build_steps # Initialization.
+  - checkout
+  - run: *installation_dependency
+  - run: *install_deploysuite
+  # Restoration of node_modules from cache.
+  - restore_cache: *restore_cache
+  - run: *install_npm
+  # Caching node modules.
+  - save_cache: *save_cache
+  # deploy app
+  - run:
+      name: Deploy via Masterscript v2
+      command: |
+        ./awsconfiguration.sh $DEPLOY_ENV
+        source awsenvconf
+        ./buildenv.sh -e $DEPLOY_ENV -b ${LOGICAL_ENV}-${GIT_REPO}-deployvar
+        source buildenvvar
+        ./master_deploy.sh -d LAMBDA -e $DEPLOY_ENV -s ${LOGICAL_ENV}-${GIT_REPO}-appvar
+jobs:
+  "build-prod":
+    <<: *default
+    environment:
+      DEPLOY_ENV: "PROD"
+      LOGICAL_ENV: "prod"
+      GIT_REPO: "auth0-config-backup"
+      # deploy app
+    steps: *build_steps
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      # production builds are executed on "master" branch only.
+      - "build-prod":
+          context: org-global
+          filters:
+            branches:
+              only:
+                - master
