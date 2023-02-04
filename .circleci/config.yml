@@ -7,7 +7,7 @@ installation_dependency: &installation_dependency
   name: Install Serverless and AWS CLI
   command: |
     sudo apt-get update -y && sudo apt-get install -qq -y python-pip libpython-dev
-    curl -O https://bootstrap.pypa.io/pip/2.7/get-pip.py && sudo python get-pip.py
+    #curl -O https://bootstrap.pypa.io/pip/2.7/get-pip.py && sudo python get-pip.py
     #installing awscli
     sudo pip install awscli --upgrade
     #install serverless
