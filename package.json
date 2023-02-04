@@ -3,19 +3,23 @@
   "version": "1.0.0",
   "description": "Syncs Auth0 tenant configuration to Github repository",
   "dependencies": {
-    "auth0-deploy-cli": "^4.2.0",
-    "aws-sdk": "^2.648.0",
-    "config": "^3.3.1",
-    "del": "^5.1.0",
-    "winston": "^3.2.1"
-  },
-  "devDependencies": {
-    "standard": "^14.3.3"
+    "auth0-deploy-cli": "^7.16.0",
+    "aws-sdk": "^2.1306.0",
+    "config": "^3.3.9",
+    "del": "^7.0.0",
+    "winston": "^3.8.2"
   },
   "scripts": {
-    "lint": "standard",
-    "lint:fix": "standard --fix"
+    "lint": "eslint --ext .js .",
+    "lint:fix": "eslint --fix --ext .js ."
   },
   "author": "Topcoder",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "eslint": "^8.33.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-n": "^15.6.1",
+    "eslint-plugin-promise": "^6.1.1"
+  }
 }

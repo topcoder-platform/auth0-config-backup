@@ -10,6 +10,8 @@ const AWS = require('aws-sdk')
 const del = require('del')
 const logger = require('../common/logger')
 
+const ssm = new AWS.SSM()
+
 const REPO_PATH = config.get('REPO_PATH')
 const KNOWN_HOSTS_PATH = config.get('KNOWN_HOSTS_PATH')
 const PRIVATE_KEY_PATH = config.get('PRIVATE_KEY_PATH')
@@ -24,49 +26,11 @@ const execSyncOptionsWithRepoPathCwd = {
   cwd: REPO_PATH
 }
 
-const AWS_PARAMETER_STORE = config.get('AWS_PARAMETER_STORE')
-const ssm = new AWS.SSM()
-
-// Build a promise and resolve it later when it is needed. This way, secrets will get decrypted on the first invocation and we can simply use the same value in subsequent invocations
-const githubPrivateKeyPromise = ssm.getParameter({
-  Name: AWS_PARAMETER_STORE.githubPrivateKeyName,
-  WithDecryption: true // Decrypt outside the lambda function
-}).promise()
-const auth0ClientIdPromise = ssm.getParameter({
-  Name: AWS_PARAMETER_STORE.auth0ClientIdName,
-  WithDecryption: true
-}).promise()
-const auth0ClientSecretPromise = ssm.getParameter({
-  Name: AWS_PARAMETER_STORE.auth0ClientSecretName,
-  WithDecryption: true
-}).promise()
-
-let AUTH0_CONFIG = null
-
-/**
- * Create the Auth0 config object
- */
-async function buildAuth0Config () {
-  logger.info('Building Auth0 config. Attempting to download AUTH0_CLIENT_ID and AUTH0_CLIENT_SECRET from AWS Parameter Store.')
-  AUTH0_CONFIG = {
-    AUTH0_DOMAIN: process.env.AUTH0_DOMAIN,
-    AUTH0_CLIENT_SECRET: (await auth0ClientSecretPromise).Parameter.Value,
-    AUTH0_CLIENT_ID: (await auth0ClientIdPromise).Parameter.Value,
-    AUTH0_KEYWORD_REPLACE_MAPPINGS: JSON.parse(process.env.AUTH0_KEYWORD_REPLACE_MAPPINGS)
-  }
-  logger.info('Successfully built Auth0 config')
-}
-
 /**
  * Clones the github repository using SSH
  */
 async function cloneRepository () {
   logger.info('Attempting to clone a repository')
-
-  // Build config if it doesn't already exist
-  if (!AUTH0_CONFIG) {
-    await buildAuth0Config()
-  }
 
   // Delete contents of existing operating directory
   logger.info('Clearing existing operating directory')
@@ -78,7 +42,11 @@ async function cloneRepository () {
 
   // Download and create the private ssh key file
   logger.info('Creating private ssh key file')
-  fs.writeFileSync(config.get('PRIVATE_KEY_PATH'), (await githubPrivateKeyPromise).Parameter.Value)
+  const githubPrivateKey = await ssm.getParameter({
+    Name: config.get('AWS_PS_GITHUB_PRIVATE_KEY_NAME'),
+    WithDecryption: true // Decrypt outside the lambda function
+  }).promise()
+  fs.writeFileSync(config.get('PRIVATE_KEY_PATH'), githubPrivateKey.Parameter.Value)
 
   // Change permissions of the ssh key file
   logger.info('Updating permissions of private ssh key file')
@@ -88,7 +56,7 @@ async function cloneRepository () {
 
   // Clone the repository
   logger.info('Executing clone')
-  execSync(`git clone ${process.env.GITHUB_REPOSITORY_URL} ${REPO_PATH}`, execSyncOptions)
+  execSync(`git clone ${config.get('GITHUB_REPOSITORY_URL')} ${REPO_PATH}`, execSyncOptions)
 
   // Set user name and user email
   logger.info('Setting user name and email')
@@ -99,19 +67,39 @@ async function cloneRepository () {
 }
 
 /**
+ * Get the auth0 tenant configuration
+ */
+async function getAuth0TenantConfig () {
+  const configObject = await ssm.getParameter({
+    Name: config.get('AWS_PS_AUTH0_TENANT_CONFIG_NAME'),
+    WithDecryption: true
+  }).promise()
+  return JSON.parse(configObject.Parameter.Value)
+}
+
+/**
  * Checks out a branch inside the repository
  */
-async function checkoutBranch () {
-  logger.info(`Switching to branch ${process.env.GITHUB_REPOSITORY_BRANCH}`)
-  execSync(`git checkout ${process.env.GITHUB_REPOSITORY_BRANCH}`, {
+async function checkoutBranch (branchName) {
+  logger.info(`Switching to branch ${branchName}`)
+  const remoteExists = execSync(`git ls-remote origin ${branchName}`, {
     cwd: REPO_PATH
   })
+  if (!remoteExists || !remoteExists.toString().trim()) {
+    execSync(`git switch --orphan ${branchName}`, {
+      cwd: REPO_PATH
+    })
+  } else {
+    execSync(`git switch ${branchName}`, {
+      cwd: REPO_PATH
+    })
+  }
 }
 
 /**
  * Downloads the tenant configuration from Auth0
  */
-async function downloadAuth0TenantConfig () {
+async function downloadAuth0TenantConfig (domain, clientId, clientSecret, tenantName) {
   logger.info('Downloading tenant config')
   // Delete all repository contents excluding the .git folder
   await del(['**', '!.git'], {
@@ -120,7 +108,17 @@ async function downloadAuth0TenantConfig () {
   // Download the new config into the repository
   await dump({
     output_folder: REPO_PATH,
-    config: AUTH0_CONFIG
+    format: 'directory',
+    config: {
+      AUTH0_DOMAIN: domain,
+      AUTH0_CLIENT_ID: clientId,
+      AUTH0_CLIENT_SECRET: clientSecret,
+      AUTH0_KEYWORD_REPLACE_MAPPINGS: {
+        AUTH0_TENANT_NAME: tenantName
+      },
+      AUTH0_ALLOW_DELETE: false,
+      AUTH0_EXCLUDED: []
+    }
   })
 }
 
@@ -142,7 +140,7 @@ async function changesExist () {
 /**
  * Commits changes and pushes it to the origin
  */
-async function commitAndPushChanges () {
+async function commitAndPushChanges (branchName) {
   // Stage changes
   logger.info('Staging changes')
   execSync('git add .', execSyncOptionsWithRepoPathCwd)
@@ -153,7 +151,7 @@ async function commitAndPushChanges () {
 
   // Push changes
   logger.info('Pushing changes')
-  execSync(`git push -u origin ${process.env.GITHUB_REPOSITORY_BRANCH}`, execSyncOptionsWithRepoPathCwd)
+  execSync(`git push -u origin ${branchName}`, execSyncOptionsWithRepoPathCwd)
 }
 
 /**
@@ -162,13 +160,22 @@ async function commitAndPushChanges () {
 module.exports.handle = async () => {
   try {
     await cloneRepository()
-    await checkoutBranch()
-    await downloadAuth0TenantConfig()
-    if (await changesExist()) {
-      await commitAndPushChanges()
-      logger.info('Successfully updated Auth0 tenant config to Github')
-    } else {
-      logger.info('No changes exist in tenant config. Skipping commit and push. Process complete.')
+    const tenantConfig = await getAuth0TenantConfig()
+    for (const tenant of tenantConfig) {
+      const branchName = tenant.branchName
+      const domain = tenant.domain
+      const clientId = tenant.clientId
+      const clientSecret = tenant.clientSecret
+      const tenantName = tenant.tenantName
+      logger.info(`Starting ${tenantName}`)
+      await checkoutBranch(branchName)
+      await downloadAuth0TenantConfig(domain, clientId, clientSecret, tenantName)
+      if (await changesExist()) {
+        await commitAndPushChanges(branchName)
+        logger.info('Successfully updated Auth0 tenant config to Github')
+      } else {
+        logger.info('No changes exist in tenant config. Skipping commit and push. Process complete.')
+      }
     }
   } catch (e) {
     logger.info('Failed to update Auth0 tenant config to Github')
