@@ -6,11 +6,11 @@ const { execSync } = require('child_process')
 const fs = require('fs')
 const { dump } = require('auth0-deploy-cli')
 const config = require('config')
-const AWS = require('aws-sdk')
+const { SSM } = require('aws-sdk')
 const del = require('del')
 const logger = require('../common/logger')
 
-const ssm = new AWS.SSM()
+const ssm = new SSM()
 
 const REPO_PATH = config.get('REPO_PATH')
 const KNOWN_HOSTS_PATH = config.get('KNOWN_HOSTS_PATH')
