@@ -1,4 +1,4 @@
-service: tc-lambda-auth0-config-backup
+service: tc-lambda-auth0-config-sync
 
 package:
   patterns: # Exclude images and markdown files from being packaged into lambda function
@@ -15,10 +15,10 @@ provider:
   timeout: 600 # Allow lambda to run upto 10 minutes
 
 functions:
-  tc-lambda-auth0-config-backup:
+  tc-lambda-auth0-config-sync:
     handler: src/functions/processor.handle
     description: Syncs Auth0 tenant configuration to Github repository
-    name: tc-lambda-auth0-config-backup
+    name: tc-lambda-auth0-config-sync
     events:
       - schedule: cron(0 23 * * ? *)
     layers: # The git-lambda layer to use. The arn provided below is for linux nodejs12.x as documented in https://github.com/lambci/git-lambda-layer#version-arns-for-amazon-linux-2-runtimes-nodejs10x-nodejs12x-python38-java11
