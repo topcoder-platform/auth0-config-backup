@@ -13,8 +13,8 @@ module.exports = {
   REPO_PATH,
   KNOWN_HOSTS_PATH,
   PRIVATE_KEY_PATH,
-  AWS_PS_GITHUB_PRIVATE_KEY_NAME: 'auth0-config-backup/github-private-key',
-  AWS_PS_AUTH0_TENANT_CONFIG_NAME: 'auth0-config-backup/auth0-tenant-config',
+  AWS_PS_GITHUB_PRIVATE_KEY_NAME: '/auth0-config-backup/github-private-key',
+  AWS_PS_AUTH0_TENANT_CONFIG_NAME: '/auth0-config-backup/auth0-tenant-config',
   GITHUB_REPOSITORY_URL: 'git@github.com:appirio-tech/auth0-config.git',
   GIT_USER_NAME: 'Topcoder Developer', // User name to use in commit messages
   GIT_USER_EMAIL: 'support@topcoder.com', // User email to use in commit messages
