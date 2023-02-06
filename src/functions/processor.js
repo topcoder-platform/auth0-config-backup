@@ -52,7 +52,7 @@ async function cloneRepository () {
 
   // Change permissions of the ssh key file
   logger.info('Updating permissions of private ssh key file')
-  execSync(`chmod 400 ${PRIVATE_KEY_PATH}`, execSyncOptions)
+  execSync(`chmod 600 ${PRIVATE_KEY_PATH}`, execSyncOptions)
 
   process.env.GIT_SSH_COMMAND = `ssh -o UserKnownHostsFile=${KNOWN_HOSTS_PATH} -i ${PRIVATE_KEY_PATH}`
 

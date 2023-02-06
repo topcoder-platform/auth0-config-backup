@@ -10,7 +10,7 @@ provider:
   name: aws
   stage: ${opt:stage, 'dev'}
   role: ${file(./config/${self:provider.stage}.json):LAMBDA_ROLE}
-  runtime: nodejs12.x
+  runtime: nodejs18.x
   memorySize: 256
   timeout: 600 # Allow lambda to run upto 10 minutes
 
@@ -22,4 +22,4 @@ functions:
     events:
       - schedule: cron(0 23 * * ? *)
     layers: # The git-lambda layer to use. The arn provided below is for linux nodejs12.x as documented in https://github.com/lambci/git-lambda-layer#version-arns-for-amazon-linux-2-runtimes-nodejs10x-nodejs12x-python38-java11
-      - arn:aws:lambda:us-east-1:553035198032:layer:git-lambda2:3
+      - arn:aws:lambda:us-east-1:553035198032:layer:git-lambda2:8
