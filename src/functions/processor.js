@@ -15,7 +15,6 @@ const ssm = new SSM()
 const REPO_PATH = config.get('REPO_PATH')
 const KNOWN_HOSTS_PATH = config.get('KNOWN_HOSTS_PATH')
 const PRIVATE_KEY_PATH = config.get('PRIVATE_KEY_PATH')
-const GITHUB_PUBLIC_KEY = config.get('GITHUB_PUBLIC_KEY')
 
 const execSyncOptions = {
   encoding: 'utf8',
@@ -35,10 +34,13 @@ async function cloneRepository () {
   // Delete contents of existing operating directory
   logger.info('Clearing existing operating directory')
   execSync(`rm -rf ${config.get('OPERATING_PATH')}/*`, execSyncOptions)
-
+  const githubPublicKey = await ssm.getParameter({
+    Name: config.get('AWS_PS_GITHUB_PUBLIC_KEY_NAME'),
+    WithDecryption: true // Decrypt outside the lambda function
+  }).promise()
   // Create the known_hosts file
   logger.info('Creating known_hosts')
-  fs.writeFileSync(KNOWN_HOSTS_PATH, `github.com,${config.get('GITHUB_GIT_IPS')} ${GITHUB_PUBLIC_KEY}`)
+  fs.writeFileSync(KNOWN_HOSTS_PATH, `github.com,${config.get('GITHUB_GIT_IPS')} ${githubPublicKey.Parameter.Value}`)
 
   // Download and create the private ssh key file
   logger.info('Creating private ssh key file')
